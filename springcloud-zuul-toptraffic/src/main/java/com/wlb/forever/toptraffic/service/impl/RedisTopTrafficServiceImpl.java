@@ -5,7 +5,7 @@ import com.wlb.forever.util.RedisUtil;
 import org.springframework.data.redis.core.RedisTemplate;
 
 public class RedisTopTrafficServiceImpl extends AbstractTopTrafficServiceImpl {
-    private RedisUtil redisUtil;
+    private final RedisUtil redisUtil;
 
     public RedisTopTrafficServiceImpl(RedisTemplate<String, Object> redisTemplate) {
         this.redisUtil = new RedisUtil(redisTemplate);
