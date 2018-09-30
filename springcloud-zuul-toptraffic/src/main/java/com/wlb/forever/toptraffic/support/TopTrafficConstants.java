@@ -4,7 +4,9 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 /**
- *
+ * @Auther: william
+ * @Date: 18/9/28 16:31
+ * @Description:
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class TopTrafficConstants {

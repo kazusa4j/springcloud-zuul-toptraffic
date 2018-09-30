@@ -85,5 +85,12 @@ compute-service:
     MaxAutoRetries: 1
 wlb:
   toptraffic:
-    service: REDIS
+    #数据库类型
+    persistence: REDIS
+    #统计60分钟访问内访问次数
+    defaultRedisStatisticsTime: 60
+    #访问次数限制
+    defaultVisitTime: 10
+    #统计访问时间间隔(10秒内访问次数计入1次)
+    defaultVisitIntervalTime: 10
 

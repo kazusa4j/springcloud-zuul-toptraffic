@@ -4,7 +4,9 @@ import com.netflix.zuul.context.RequestContext;
 import com.wlb.forever.toptraffic.service.TopTrafficService;
 import com.wlb.forever.toptraffic.domain.VisitMonitor;
 import com.wlb.forever.toptraffic.support.TopTrafficConstants;
+import com.wlb.forever.toptraffic.support.TopTrafficRequestAssem;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -15,13 +17,23 @@ import java.io.InputStream;
 import java.util.Date;
 import java.util.UUID;
 
+import static com.wlb.forever.toptraffic.support.TopTrafficConstants.PREFIX;
 import static org.springframework.cloud.netflix.zuul.filters.support.FilterConstants.POST_TYPE;
 import static org.springframework.cloud.netflix.zuul.filters.support.FilterConstants.SEND_RESPONSE_FILTER_ORDER;
 
+
+/**
+ * @Auther: william
+ * @Date: 18/9/28 16:31
+ * @Description:
+ */
 @Slf4j
 public class TopTrafficPostFilter extends AbstractTopTrafficFilter {
 
     private final TopTrafficService topTrafficService;
+
+    @Value("${" + PREFIX + ".defaultVisitIntervalTime}")
+    private int defaultVisitTimeInterval;
 
     public TopTrafficPostFilter(TopTrafficService topTrafficService) {
         this.topTrafficService = topTrafficService;
@@ -47,20 +59,17 @@ public class TopTrafficPostFilter extends AbstractTopTrafficFilter {
         RequestContext ctx = RequestContext.getCurrentContext();
         HttpServletRequest request = ctx.getRequest();
         int requestTraffic = getResponseDataStreamSize();
-        String requestIp = getIpAddr(request);
+        String requestIp = TopTrafficRequestAssem.getIpAddr(request);
         String requestUrl = getRequestAddr(request);
+        if(getRequestStartTime()==null){
+            return null;
+        }
         Long timeConsum = System.currentTimeMillis() - getRequestStartTime();
-        VisitMonitor visitMonitor = new VisitMonitor();
-        visitMonitor.setId(UUID.randomUUID().toString());
-        visitMonitor.setRequestIp(requestIp);
-        visitMonitor.setRequestTraffic(requestTraffic);
-        visitMonitor.setRequestUrl(requestUrl);
-        visitMonitor.setResponseCode(ctx.getResponseStatusCode());
-        visitMonitor.setResponseData(null);
-        visitMonitor.setTimeConsum(timeConsum);
-        Date date = new Date();
-        visitMonitor.setVisitTime(date);
-        topTrafficService.saveVisitMonitor(visitMonitor);
+        VisitMonitor visitMonitor = new VisitMonitor(UUID.randomUUID().toString(), requestUrl, requestIp, new Date(), timeConsum, requestTraffic, ctx.getResponseStatusCode(), null);
+        topTrafficService.setVisitMonitor(visitMonitor);
+        String statisticsKey=TopTrafficRequestAssem.initStatisticsKey(request);
+        long totalMinutes = TopTrafficRequestAssem.getTimeRound(System.currentTimeMillis(),defaultVisitTimeInterval*1000);
+        topTrafficService.setStatistics(statisticsKey,totalMinutes+"");
         return null;
     }
 
@@ -127,37 +136,19 @@ public class TopTrafficPostFilter extends AbstractTopTrafficFilter {
             baos.flush();
             return baos;
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("");
             return null;
         } finally {
             try {
                 baos.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("cloneInputStreamc出现异常!");
                 return null;
             }
         }
     }
 
-    /**
-     * 获取访问请求ip
-     *
-     * @param request
-     * @return
-     */
-    private String getIpAddr(HttpServletRequest request) {
-        String ip = request.getHeader("x-forwarded-for");
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
-        }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        return ip;
-    }
+
 
     /**
      * 获取请求URL

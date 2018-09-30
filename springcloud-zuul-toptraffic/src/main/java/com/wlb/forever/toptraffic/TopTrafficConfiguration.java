@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.zuul.ZuulFilter;
+import com.wlb.forever.toptraffic.permission.DefaultVisitLimit;
+import com.wlb.forever.toptraffic.permission.VisitLimit;
 import com.wlb.forever.toptraffic.service.impl.JpaTopTrafficServiceImpl;
 import com.wlb.forever.toptraffic.service.impl.RedisTopTrafficServiceImpl;
 import com.wlb.forever.toptraffic.service.TopTrafficService;
@@ -25,11 +27,16 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import static com.wlb.forever.toptraffic.support.TopTrafficConstants.PREFIX;
 
+/**
+ * @Auther: william
+ * @Date: 18/9/28 16:31
+ * @Description:
+ */
 @Configuration
 public class TopTrafficConfiguration {
     @Bean
-    public ZuulFilter topTrafficPreFilter() {
-        return new TopTrafficPreFilter();
+    public ZuulFilter topTrafficPreFilter(TopTrafficService topTrafficService,VisitLimit visitLimit) {
+        return new TopTrafficPreFilter(topTrafficService,visitLimit);
     }
 
     @Bean
@@ -40,7 +47,7 @@ public class TopTrafficConfiguration {
     @Configuration
     @ConditionalOnClass(RedisTemplate.class)
     @ConditionalOnMissingBean(TopTrafficService.class)
-    @ConditionalOnProperty(prefix = PREFIX, name = "service", havingValue = "REDIS")
+    @ConditionalOnProperty(prefix = PREFIX, name = "persistence", havingValue = "REDIS")
     public static class RedisConfiguration {
 
         @Bean("topTrafficRedisTemplate")
@@ -75,11 +82,20 @@ public class TopTrafficConfiguration {
     @Configuration
     @EnableJpaRepositories
     @ConditionalOnMissingBean(TopTrafficService.class)
-    @ConditionalOnProperty(prefix = PREFIX, name = "service", havingValue = "JPA")
+    @ConditionalOnProperty(prefix = PREFIX, name = "persistence", havingValue = "JPA")
     public static class SpringDataConfiguration {
         @Bean
         public TopTrafficService jpaTopTrafficServiceImpl(TopTrafficCrudRepository topTrafficCrudRepository) {
             return new JpaTopTrafficServiceImpl(topTrafficCrudRepository);
+        }
+    }
+
+    @Configuration
+    @ConditionalOnMissingBean(VisitLimit.class)
+    public static class DefaultVisitLimitConfiguration {
+        @Bean
+        public VisitLimit defaultVisitLimit() {
+            return new DefaultVisitLimit();
         }
     }
 }
